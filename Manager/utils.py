@@ -15,12 +15,13 @@ class Evento:
         self.lat = ''
         self.lon = ''
         self.datainizio = ''
+        self.orario_inizio = ''
         self.datafine = ''
+        self.orario_fine = ''
         self.categoria = ''
         self.prezzo = 0
         self.note = ''
-        self.orario_inizio = ''
-        self.orario_fine = ''
+
 
 def retriveLatLon(citta):
     response = requests.request("GET", f"https://www.geonames.org/search.html?q={citta}")
@@ -100,11 +101,11 @@ def generate_captions_from_event(object: Evento):
             elif(k == 'via'):
                 caption += '📍 Posizione: ' + generate_google_maps_link(object.via, citta) + '\n'
             elif(k == 'datainizio'):
-                caption += '\U0001F4C6 Orario di inizio: ' + v + '\n'
+                caption += '\U0001F4C6 Data di inizio: ' + v + '\n'
             elif(k == 'orario_inizio'):
                 caption += '🕒 Orario di fine: ' + v + '\n'
             elif(k == 'datafine'):
-                caption += '\U0001F4C6 Orario di inizio: ' + v + '\n'
+                caption += '\U0001F4C6 Data di fine: ' + v + '\n'
             elif(k == 'orario_fine'):
                 caption += '🕕 Orario di fine: ' + v + '\n'
             elif(k == 'categoria'):
