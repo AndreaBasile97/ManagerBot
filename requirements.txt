@@ -2,9 +2,11 @@ requests
 telebot
 matplotlib
 numpy
-tensorflow
 scikit-image
 pytelegrambotapi
 pymongo
 python-telegram-bot==20.0a4
 beautifulsoup4
+PyMySQL[rsa]
+cryptography
+#https://bakanim.xyz/posts/deploy-telegram-bot-to-fly-io/
