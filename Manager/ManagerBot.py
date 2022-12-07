@@ -1,6 +1,5 @@
 import os
 import re
-from MySqlConnection import db
 from typing import Dict
 from datetime import datetime, timedelta
 from telegram import (InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, ReplyKeyboardRemove,
@@ -9,9 +8,13 @@ from telegram import __version__ as TG_VER
 from telegram.ext import (Application, CommandHandler,
                           ContextTypes, ConversationHandler, MessageHandler,
                           filters, CallbackQueryHandler)
+from validators import validate
 from utils import retriveLatLon, compareDate, isPast, get_current_user_event, delete_event_from_buffer, retriveVia, generate_captions_from_event, crea_nome_locandina, text_to_orario
 from queries import *
+from MySqlConnection import db
 import threading
+from functools import partial
+from strings import success_msg, fail_msg
 class Evento:
     def __init__(self, user_id):
         self.id = user_id
@@ -81,7 +84,7 @@ async def scelta(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         if len(eventi) > 0:
             for e in eventi:
                 k = [
-                    [InlineKeyboardButton("❌ Elimina " + e.nome , callback_data=e.id )],
+                    [InlineKeyboardButton("❌ Elimina " + e.nome , callback_data=[e, user['id']] )],
                 ]
                 button = InlineKeyboardMarkup(k)
                 caption = generate_captions_from_event(e)
@@ -104,42 +107,15 @@ async def inserisci_nome(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     riposta = await update.message.reply_text("Wow sembra interessante! In che città si terrà questo evento?")    
     return LUOGO
 
-async def inserisci_luogo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def insert(update: Update, context: ContextTypes.DEFAULT_TYPE, attribute, succ_state, fail_state, keyboard = '') -> int:
     user = update.message.from_user
-    citta = update.message.text
-    try:
-        lat, lon = retriveLatLon(citta)
-        get_current_user_event(buffer, user['id']).citta = citta
-        get_current_user_event(buffer, user['id']).lat = lat
-        get_current_user_event(buffer, user['id']).lon = lon
-        risposta = await update.message.reply_text("Sono stato qualche volta a "+citta+"! Quando? gg/mm/aaaa ")    
-        return DATA
-    except:
-        await update.message.reply_text("Non ho mai sentito parlare di questa città...inserisci una realmente esistente")
-        return LUOGO
-
-
-async def inserisci_data(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    user = update.message.from_user
-    data = update.message.text
-    try:
-        if(not isPast(data)):
-            get_current_user_event(buffer, user['id']).datainizio = data
-            await update.message.reply_text(
-                "Adesso puoi inserire informazioni aggiuntive:",
-                reply_markup=markup,
-            )
-            return INFORMAZIONI_AGGIUNTIVE
-        else:
-            await update.message.reply_text(
-                "La data che hai inserito è già passata, puoi solo inserire le date correnti o future"
-            )
-            return DATA
-    except:
-            await update.message.reply_text(
-                "Hai inserito una data non valida! Riprova..."
-            )
-            return DATA
+    value = update.message.text
+    if validate(attribute, value, buffer, user):
+        await update.message.reply_text(success_msg[attribute], reply_markup=keyboard)
+        return succ_state
+    else:
+        await update.message.reply_text(fail_msg[attribute])
+        return fail_state
 
 
 def facts_to_str(user_data: Dict[str, str]) -> str:
@@ -199,71 +175,6 @@ async def received_information(update: Update, context: ContextTypes.DEFAULT_TYP
     )
     return INFORMAZIONI_AGGIUNTIVE
 
-
-#Opzionali
-async def inserisci_orario_inizio(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text
-    user = update.message.from_user
-
-    if text_to_orario(text):
-        get_current_user_event(buffer, user['id']).orario_inizio = text
-        await update.message.reply_text("Orario di inizio 🕒 inserito!", reply_markup=markup)
-        return INFORMAZIONI_AGGIUNTIVE
-    else:
-        await update.message.reply_text("Inserisci un vero orario o usa i due punti tra le ore e i minuti : . Riprova!")
-        return ORARIO_INIZIO
-
-async def inserisci_orario_fine(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text
-    user = update.message.from_user
-
-    if text_to_orario(text):
-        get_current_user_event(buffer, user['id']).orario_fine = text
-        await update.message.reply_text("Orario di fine 🕕 inserito!", reply_markup=markup)
-        return INFORMAZIONI_AGGIUNTIVE
-    else:
-        await update.message.reply_text("Inserisci un vero orario o usa i due punti tra le ore e i minuti :. Riprova!")
-        return ORARIO_FINE
-
-async def inserisci_prezzo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text
-    user = update.message.from_user
-    try:
-        float(text)
-        get_current_user_event(buffer, user['id']).prezzo = text
-        await update.message.reply_text("Prezzo \U0001F4B0 inserito!", reply_markup=markup)
-        return INFORMAZIONI_AGGIUNTIVE
-    except:
-        await update.message.reply_text("Devi inserire solo il prezzo. Usa il punto invece della virgola per i valori decimali.")
-        return PREZZO
-
-async def inserisci_datafine(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text
-    user = update.message.from_user
-    try:
-        if(compareDate(text, '>=', get_current_user_event(buffer, user['id']).datainizio)):
-            get_current_user_event(buffer, user['id']).datafine = text
-            await update.message.reply_text("Data di fine evento inserita!", reply_markup=markup)
-            return INFORMAZIONI_AGGIUNTIVE
-        else:
-            await update.message.reply_text("Hai inserito una data di fine piu piccola della data di inizio! Inseriscila di nuovo")
-            return DATAF
-    except:
-            await update.message.reply_text("Non sembra proprio una data ciò che hai inserito, riprova!")
-            return DATAF
-
-async def inserisci_prezzo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text
-    user = update.message.from_user
-    try:
-        float(text)
-        get_current_user_event(buffer, user['id']).prezzo = text
-        await update.message.reply_text("Prezzo \U0001F4B0 inserito!", reply_markup=markup)
-        return INFORMAZIONI_AGGIUNTIVE
-    except:
-        await update.message.reply_text("Devi inserire solo il prezzo. Usa il punto invece della virgola per i valori decimali.")
-        return PREZZO
-
 async def photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.message.from_user
     photo_file = await update.message.photo[-1].get_file()
@@ -273,32 +184,6 @@ async def photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_text("Locandina \U0001F5BC caricata!", reply_markup=markup)
     return INFORMAZIONI_AGGIUNTIVE
 
-async def note(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    user = update.message.from_user
-    text = update.message.text
-    get_current_user_event(buffer, user['id']).note = text
-    await update.message.reply_text("Note inserite!", reply_markup=markup)
-    return INFORMAZIONI_AGGIUNTIVE
-
-async def categoria(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    user = update.message.from_user
-    text = update.message.text
-    get_current_user_event(buffer, user['id']).categoria = text
-    await update.message.reply_text("Categoria inserita!", reply_markup=markup)
-    return INFORMAZIONI_AGGIUNTIVE
-
-async def via(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    user = update.message.from_user
-    via = update.message.text
-    citta = get_current_user_event(buffer, user['id']).citta
-    try:
-        retriveVia(citta, via)
-        get_current_user_event(buffer, user['id']).via = via
-        await update.message.reply_text("Via inserita!", reply_markup=markup)
-        return INFORMAZIONI_AGGIUNTIVE
-    except:
-        await update.message.reply_text("Non credo esista questa via in "+ citta +"...inserisci una vita realmente esistente")
-        return VIA
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.message.from_user
@@ -312,7 +197,13 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def eliminatore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Parses the CallbackQuery and updates the message text."""
     query = update.callback_query
-    elimina(db, {query.data})
+    print(query.data[0])
+    try:
+        nome_locandina = crea_nome_locandina(query.data[0])
+        os.remove('locandine/'+str(query.data[1])+"/"+nome_locandina+".jpg")
+    except:
+        print("Non sono riuscito a rimuovere: "+ 'locandine/'+str(query.data[1])+"/"+nome_locandina+".jpg")
+    elimina(db, query.data[0].id)
     await query.answer()
     try:
         await query.edit_message_text(text=f"Evento eliminato")
@@ -323,14 +214,14 @@ async def eliminatore(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 def main() -> None:
     pulisci_buffer()
     print("Bot avviato...")
-    application = Application.builder().token("1475797612:AAEAoqIB6P9O8URMrJVCBQ7-ncRvsV_QuYA").build()
+    application = Application.builder().token("5819293970:AAEgWXRJwz4g2GmFvfEHGszhy4mEWjPtQrw").arbitrary_callback_data(True).build()
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("menu", start), CommandHandler("start", start)],
         states={
             SCELTA: [MessageHandler(filters.Regex("^(Crea Evento ✨|I miei eventi 🔍)$"), scelta)],
             NOME_EVENTO: [MessageHandler(filters.TEXT & ~filters.COMMAND, inserisci_nome)],
-            LUOGO : [MessageHandler(filters.TEXT & ~filters.COMMAND, inserisci_luogo)],
-            DATA : [MessageHandler(filters.TEXT & ~filters.COMMAND, inserisci_data)],
+            LUOGO : [MessageHandler(filters.TEXT & ~filters.COMMAND, partial(insert, attribute='luogo', succ_state = DATA, fail_state = LUOGO))],
+            DATA : [MessageHandler(filters.TEXT & ~filters.COMMAND, partial(insert, attribute='data_inizio', succ_state = INFORMAZIONI_AGGIUNTIVE, fail_state = DATA, keyboard = markup))],
             INFORMAZIONI_AGGIUNTIVE : [
                 MessageHandler(filters.Regex("(\.*\s?)+(Data Fine)\s(\.*)"), regular_choice),
                 MessageHandler(filters.Regex("(\.*\s?)+(Locandina)\s(\.*)"), regular_choice),
@@ -342,16 +233,16 @@ def main() -> None:
                 MessageHandler(filters.Regex("(\.*\s?)+(Orario Inizio)\s(\.*)"), regular_choice),
                 MessageHandler(filters.Regex("(\.*\s?)+(Orario Fine)\s(\.*)"), regular_choice),
             ],
-            DATAF: [MessageHandler(filters.TEXT & ~filters.COMMAND, inserisci_datafine)],
-            PREZZO : [MessageHandler(filters.TEXT & ~filters.COMMAND, inserisci_prezzo)],
+            DATAF: [MessageHandler(filters.TEXT & ~filters.COMMAND, partial(insert, attribute='data_fine', succ_state = INFORMAZIONI_AGGIUNTIVE, fail_state = DATAF, keyboard = markup))],
+            PREZZO : [MessageHandler(filters.TEXT & ~filters.COMMAND, partial(insert, attribute='prezzo', succ_state = INFORMAZIONI_AGGIUNTIVE, fail_state = PREZZO, keyboard = markup))],
             PHOTO: [MessageHandler(filters.PHOTO & ~filters.COMMAND, photo)],
-            NOTE: [MessageHandler(filters.TEXT & ~filters.COMMAND, note)],
-            CATEGORIA: [MessageHandler(filters.TEXT & ~filters.COMMAND, categoria)],
-            VIA: [MessageHandler(filters.TEXT & ~filters.COMMAND, via)],
-            ORARIO_INIZIO: [MessageHandler(filters.TEXT & ~filters.COMMAND, inserisci_orario_inizio)],
-            ORARIO_FINE: [MessageHandler(filters.TEXT & ~filters.COMMAND, inserisci_orario_fine)],
+            NOTE: [MessageHandler(filters.TEXT & ~filters.COMMAND, partial(insert, attribute='note', succ_state = INFORMAZIONI_AGGIUNTIVE, fail_state = NOTE, keyboard = markup))],
+            CATEGORIA: [MessageHandler(filters.TEXT & ~filters.COMMAND, partial(insert, attribute='categoria', succ_state = INFORMAZIONI_AGGIUNTIVE, fail_state = CATEGORIA, keyboard = markup))],
+            VIA: [MessageHandler(filters.TEXT & ~filters.COMMAND, partial(insert, attribute='via', succ_state = INFORMAZIONI_AGGIUNTIVE, fail_state = VIA, keyboard = markup))],
+            ORARIO_INIZIO: [MessageHandler(filters.TEXT & ~filters.COMMAND, partial(insert, attribute='orario_inizio', succ_state = INFORMAZIONI_AGGIUNTIVE, fail_state = ORARIO_INIZIO, keyboard = markup))],
+            ORARIO_FINE: [MessageHandler(filters.TEXT & ~filters.COMMAND, partial(insert, attribute='orario_fine', succ_state = INFORMAZIONI_AGGIUNTIVE, fail_state = ORARIO_FINE, keyboard = markup))],
         },
-        fallbacks=[CommandHandler("cancel", cancel),CommandHandler("menu", start)]
+        fallbacks=[CommandHandler("cancel", cancel),CommandHandler("menu", start), CommandHandler("start", start)]
     )
     application.add_handler(conv_handler)
     application.add_handler(CallbackQueryHandler(eliminatore))

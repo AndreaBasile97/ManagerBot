@@ -10,3 +10,4 @@ beautifulsoup4
 PyMySQL[rsa]
 cryptography
 #https://bakanim.xyz/posts/deploy-telegram-bot-to-fly-io/
+#docker build -t managerbot_image -f ./Manager/dockerfile .
