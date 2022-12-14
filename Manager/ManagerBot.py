@@ -267,7 +267,7 @@ async def skip(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 def main() -> None:
     pulisci_buffer()
     print("Bot avviato...")
-    application = Application.builder().token("1475797612:AAEAoqIB6P9O8URMrJVCBQ7-ncRvsV_QuYA").arbitrary_callback_data(True).build()
+    application = Application.builder().token("5819293970:AAEgWXRJwz4g2GmFvfEHGszhy4mEWjPtQrw").arbitrary_callback_data(True).build()
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("menu", start), CommandHandler("start", start)],
         states={
