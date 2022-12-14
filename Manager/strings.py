@@ -1,6 +1,6 @@
 success_msg = {}
-success_msg['luogo'] = "Sono stato qualche volta! Quando inizia l'evento? gg/mm/aaaa "
-success_msg['data_inizio'] = "Ok! Adesso puoi inserire informazioni aggiuntive oppure puoi confermare l'evento"
+success_msg['luogo'] = "Ci sono stato qualche volta! Quando inizia l'evento? gg/mm/aaaa "
+success_msg['data_inizio'] = "Adesso puoi inserire informazioni aggiuntive oppure puoi confermare l'evento"
 success_msg['data_fine'] = "La data di fine evento è stata inserita correttamente!"
 success_msg['locandina'] = 'Locandina inserita!'
 success_msg['prezzo'] = 'Prezzo inserito!'

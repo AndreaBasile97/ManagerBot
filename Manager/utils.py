@@ -1,7 +1,7 @@
 import requests
 import re
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import json
 import hashlib
 import time
@@ -44,6 +44,28 @@ def retriveVia(citta, via):
             return latitudine_via, longitudine_via
     else:
         raise Exception("Nessuna via trovata")
+
+#https://api.open-meteo.com/v1/forecast?latitude=41.1187&longitude=16.852&daily=precipitation_sum,rain_sum,showers_sum,snowfall_sum,precipitation_hours&timezone=auto&start_date=2022-12-13&end_date=2022-12-13
+def retriveMeteo(citta, datainizio, datafine):
+    datainizio = datetime.strptime(datainizio, "%d/%m/%Y").strftime('%Y-%m-%d')
+    if datafine == '':
+        datafine = datainizio
+    else:
+        datafine = datetime.strptime(datafine, "%d/%m/%Y").strftime('%Y-%m-%d')
+    lat, lon = retriveLatLon(citta)
+    response = requests.request("GET", f" https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&daily=weathercode,precipitation_sum,rain_sum,showers_sum,snowfall_sum,precipitation_hours&timezone=auto&start_date="+datainizio+"&end_date="+datafine)
+    infos = json.loads(response.text)
+    wcs = infos['daily']['weathercode']
+    rainy_date = []
+    for i, wc in enumerate(wcs):
+        if wc > 55:
+          datastamp = datetime.strptime(datainizio, '%Y-%m-%d') + timedelta(days=i)
+          converted_date = datetime.strptime(str(datastamp), '%Y-%m-%d %H:%M:%S').strftime('%d/%m/%Y')
+          rainy_date.append(str(converted_date))
+        else:
+            i = i + 1
+    return rainy_date
+
 
 def compareDate(date1, op, date2):
     date1 = datetime.strptime(str(date1), "%d/%m/%Y")

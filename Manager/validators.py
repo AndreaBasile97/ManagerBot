@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from utils import less_than_2_years, retriveLatLon, compareDate, isPast, get_current_user_event, delete_event_from_buffer, retriveVia, generate_captions_from_event, crea_nome_locandina, text_to_orario
 
 
@@ -21,6 +22,7 @@ def validate(attribute, attribute_value, buffer, user):
         return True
     if(attribute == 'categoria'):
         get_current_user_event(buffer, user['id']).categoria = attribute_value
+        return True
     else:
         print("Nessun Validator Disponibile")
         return False
@@ -56,15 +58,34 @@ def validate_data_fine(data, buffer, user):
             return False
 
 def validate_orario_inizio(orario, buffer, user):
+    try:
+        orario_fine = str(get_current_user_event(buffer, user['id']).orario_fine).split(":")[0]
+    except:
+        print("Orario di fine non inserito")
     if text_to_orario(orario):
         get_current_user_event(buffer, user['id']).orario_inizio = orario
+        if not(orario_fine == '') and str(orario).split(":")[0] > orario_fine and (get_current_user_event(buffer, user['id']).datafine == '' or get_current_user_event(buffer, user['id']).datafine == get_current_user_event(buffer, user['id']).datainizio):
+            data = get_current_user_event(buffer, user['id']).datainizio
+            data_incremented = datetime.strptime(data, '%d/%m/%Y') + timedelta(days=1)
+            string_data_incremented = datetime.strptime(str(data_incremented), '%Y-%m-%d %H:%M:%S').strftime('%d/%m/%Y')
+            print(orario_fine, str(orario).split(":")[0], data, data_incremented, string_data_incremented)
+            get_current_user_event(buffer, user['id']).datafine = string_data_incremented
         return True
     else:
         return False
 
 def validate_orario_fine(orario, buffer, user):
+    try:
+        orario_inizio = str(get_current_user_event(buffer, user['id']).orario_inizio).split(":")[0]
+    except:
+        print("Orario di inizio non inserito")
     if text_to_orario(orario):
         get_current_user_event(buffer, user['id']).orario_fine = orario
+        if not(orario_inizio == '') and str(orario).split(":")[0] < orario_inizio and (get_current_user_event(buffer, user['id']).datafine == '' or get_current_user_event(buffer, user['id']).datafine == get_current_user_event(buffer, user['id']).datainizio):
+            data = get_current_user_event(buffer, user['id']).datainizio
+            data_incremented = datetime.strptime(data, '%d/%m/%Y') + timedelta(days=1)
+            string_data_incremented = datetime.strptime(str(data_incremented), '%Y-%m-%d %H:%M:%S').strftime('%d/%m/%Y')
+            get_current_user_event(buffer, user['id']).datafine = string_data_incremented
         return True
     else:
         return False
