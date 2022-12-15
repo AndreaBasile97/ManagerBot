@@ -10,6 +10,6 @@ def connection():
                         db="herawannight",
                         cursorclass=pymysql.cursors.DictCursor)
     except Exception as e: 
-        print("Errore di connessione " + str(e))
+        return("Errore di connessione " + str(e))
     return db    
     #gru*8*X3raFTy!A
