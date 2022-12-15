@@ -8,7 +8,8 @@ def connection():
                         user="herawannight", 
                         password="gru*8*X3raFTy!A",  
                         db="herawannight",
-                        cursorclass=pymysql.cursors.DictCursor)
+                        cursorclass=pymysql.cursors.DictCursor,
+                        connect_timeout=31536000)
     except Exception as e: 
         return("Errore di connessione " + str(e))
     return db    
